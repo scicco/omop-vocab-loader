@@ -3,8 +3,9 @@ import pymysql
 import datetime
 from pathlib import Path
 from dotenv import dotenv_values
-from sqlalchemy import create_engine, Column, Integer, BigInteger, String, Text, Date, Float
+from sqlalchemy import create_engine, Column, Integer, BigInteger, String, Text, Date, Float, exc
 from sqlalchemy.orm import declarative_base
+import pdb
 
 Base = declarative_base()
 
@@ -14,15 +15,16 @@ class Vocabulary(Base):
     vocabulary_name = Column("vocabulary_name", String(255))
     vocabulary_reference = Column("vocabulary_reference", String(255))
     vocabulary_version = Column("vocabulary_version", String(255))
-    vocabulary_concept_id = Column("vocabulary_concept_id", BigInteger, nullable=False)
+    vocabulary_concept_id = Column("vocabulary_concept_id", BigInteger, index=True)
 
 class Concept(Base):
     __tablename__ = 'concept'
-    concept_id = Column("concept_id", BigInteger, primary_key=True)
+    concept_id = Column("concept_id", BigInteger, primary_key=True, )
     concept_name = Column("concept_name", String(255))
-    domain_id = Column("domain_id", String(20), nullable=False)
-    vocabulary_id = Column("vocabulary_id", String(20), nullable=True, default='Invalid', index=True)
+    concept_level = Column("concept_level", Integer)
+    domain_id = Column("domain_id", String(20), index=True)
     concept_class_id = Column("concept_class_id", String(20), nullable=False)
+    vocabulary_id = Column("vocabulary_id", String(20), nullable=True, default='Invalid', index=True)
     standard_concept = Column("standard_concept", String(1))
     concept_code = Column("concept_code", String(50), nullable=False)
     valid_start_date = Column("valid_start_date", Date, nullable=False)
@@ -38,39 +40,39 @@ class ConceptAncestor(Base):
 
 class ConceptClass(Base):
     __tablename__ = 'concept_class'
-    id = Column("id", BigInteger, primary_key=True, autoincrement=True)
-    concept_class_id = Column("concept_class_id", String(20), nullable=False)
+    #id = Column("id", BigInteger, primary_key=True, autoincrement=True)
+    concept_class_id = Column("concept_class_id", String(20), primary_key=True, autoincrement=False)
     concept_class_name = Column("concept_class_name", String(255), nullable=False)
     concept_class_concept_id = Column("concept_class_concept_id", BigInteger, nullable=False)
 
 class ConceptSynonym(Base):
     __tablename__ = 'concept_synonym'
     id = Column("id", BigInteger, primary_key=True, autoincrement=True)
-    concept_id = Column("concept_id", BigInteger)
+    concept_id = Column("concept_id", BigInteger, index=True)
     concept_synonym_name = Column("concept_synonym_name", Text, nullable=False)
     language_concept_id = Column("language_concept_id", BigInteger, nullable=False)
 
 class Domain(Base):
     __tablename__ = 'domain'   
-    id = Column("id", BigInteger, primary_key=True, autoincrement=True)
-    domain_id = Column("domain_id", String(20), nullable=False, index=True)
+    #id = Column("id", BigInteger, primary_key=True, autoincrement=True)
+    domain_id = Column("domain_id", String(20), nullable=False, primary_key=True, autoincrement=False)
     domain_name = Column("domain_name", String(255), nullable=False)
     domain_concept_id = Column("domain_concept_id", BigInteger, nullable=False)
 
 class DrugStrength(Base):
     __tablename__ = 'drug_strength'   
-    id = Column("id", BigInteger, primary_key=True, autoincrement=True)
-    drug_concept_id = Column("drug_concept_id", BigInteger, nullable=False, index=True)
-    ingredient_concept_id = Column("ingredient_concept_id", BigInteger, nullable=False, index=True)
-    amount_value = Column("amount_value", Float, nullable=True, default=0)
+    #id = Column("id", BigInteger, primary_key=True, autoincrement=True)
+    drug_concept_id = Column("drug_concept_id", BigInteger, nullable=False, primary_key=True)
+    ingredient_concept_id = Column("ingredient_concept_id", BigInteger, primary_key=True)
+    amount_value = Column("amount_value", Float, nullable=True)
     amount_unit_concept_id = Column("amount_unit_concept_id", BigInteger)
-    numerator_value = Column("numerator_value", Float, nullable=True, default=0)
+    numerator_value = Column("numerator_value", Float, nullable=True)
     numerator_unit_concept_id = Column("numerator_unit_concept_id", BigInteger)
-    denominator_value = Column("denominator_value", Float, nullable=True, default=0)
+    denominator_value = Column("denominator_value", Float, nullable=True)
     denominator_unit_concept_id = Column("denominator_unit_concept_id", BigInteger)
     box_size = Column("box_size", Integer)
-    valid_start_date = Column("valid_start_date", Date, nullable=False)
-    valid_end_date = Column("valid_end_date", Date, nullable=False)
+    valid_start_date = Column("valid_start_date", Date, primary_key=True)
+    valid_end_date = Column("valid_end_date", Date, primary_key=True)
     invalid_reason = Column("invalid_reason", String(1))
 
 class Relationship(Base):
@@ -84,9 +86,10 @@ class Relationship(Base):
 
 class ConceptRelationship(Base):
     __tablename__ = 'concept_relationship'   
-    concept_id_1 = Column("concept_id_1", BigInteger, nullable=False, primary_key=True)
-    concept_id_2 = Column("concept_id_2", BigInteger, nullable=False, primary_key=True)
-    relationship_id = Column("relationship_id", String(20), nullable=False)
+    #id = Column("id", BigInteger, primary_key=True, autoincrement=True)
+    concept_id_1 = Column("concept_id_1", BigInteger, primary_key=True)
+    concept_id_2 = Column("concept_id_2", BigInteger, primary_key=True)
+    relationship_id = Column("relationship_id", String(20), primary_key=True)
     valid_start_date = Column("valid_start_date", Date, nullable=False)
     valid_end_date = Column("valid_end_date", Date, nullable=False)
     invalid_reason = Column("invalid_reason", String(1))
@@ -96,9 +99,9 @@ CREATE OR REPLACE VIEW concepts_view AS
 
   SELECT c.concept_id,
          c.concept_name,
-         c.domain_id,
-         c.vocabulary_id,
-         c.concept_class_id,
+         c.domain_id as domain,
+         c.vocabulary_id as vocabulary,
+         c.concept_class_id as concept_class,
          c.concept_code,
          c.valid_start_date,
          c.valid_end_date,
@@ -150,6 +153,21 @@ CREATE OR REPLACE VIEW concept_relationships_view AS
   WHERE CURRENT_DATE BETWEEN cr.valid_start_date AND cr.valid_end_date;
 '''
 
+compound_concept_index_for_view = '''
+   CREATE INDEX idx_concept_grouping ON concept (
+    concept_id,
+    concept_name,
+    domain_id,
+    vocabulary_id,
+    concept_class_id,
+    concept_code,
+    valid_start_date,
+    valid_end_date,
+    invalid_reason,
+    standard_concept
+);
+'''
+
 def run_create_table():
     engine = get_engine()
 
@@ -171,6 +189,7 @@ def run_create_table():
 
     cursor.execute(concept_view_create_statement)
     cursor.execute(concept_relationships_views_statement)
+    cursor.execute(compound_concept_index_for_view)
     cursor.close()
     conn.close()
     return True
@@ -304,8 +323,10 @@ def process_csv(csv, cdm_schema, vocab_file_dir, chunk_size=1000000):
         print(f"End time: {end_time}")
         print(f"Elapsed time: {elapsed_time}")
         print(f"Finished processing {csv}")
-
+    except exc.DataError as sqle:
+            pdb.set_trace()
     except pymysql.Error as e:
+        pdb.set_trace()
         print(f"Database error while processing {csv}: {e}")
     except Exception as e:
         print(f"Error processing {csv}. Error: {e}")
