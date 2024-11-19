@@ -280,10 +280,10 @@ def process_csv(csv, cdm_schema, vocab_file_dir, chunk_size=1000000):
        
         conn = engine.connect()
 
-        if cdm_schema is not None:
-            table_name = f"{cdm_schema}.{csv.split('.')[0]}"
+        if cdm_schema != '':
+            table_name = f"\"{cdm_schema}\".{csv.split('.')[0]}"
         else:
-            table_name = csv.split('.')[0]
+            table_name = f"{csv.split('.')[0]}"
 
         table_name = table_name.lower()
         cursor = conn.connection.cursor()
