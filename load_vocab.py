@@ -41,7 +41,7 @@ def run_ddls(ddl_files):
 				print(file_name)
 				for line in f:
 					if env.get('CDM_SCHEMA') != '':
-						file_content += line.replace('\"cdmDatabaseSchema\"', env.get('\"CDM_SCHEMA\"'))
+						file_content += line.replace('\"cdmDatabaseSchema\"', '"'+env.get("CDM_SCHEMA")+'"')
 					else:
 						file_content += line.replace('\"cdmDatabaseSchema\".', '')
 				try:	
@@ -75,7 +75,7 @@ def process_csv(csv, connection_details, cdm_schema, vocab_file_dir, chunk_size=
 		)
 
 		if cdm_schema != '':
-			table_name = f"{cdm_schema}.{csv.split('.')[0]}"
+			table_name = f"\"{cdm_schema}\".{csv.split('.')[0]}"
 		else:
 			table_name = f"{csv.split('.')[0]}"
 
@@ -106,8 +106,10 @@ def process_csv(csv, connection_details, cdm_schema, vocab_file_dir, chunk_size=
 				tuples = [tuple(x) for x in chunk.to_numpy()]
 				cols = ','.join(list(chunk.columns))
 				query = f"INSERT INTO {table_name}({cols}) VALUES %s"
+		
 				psycopg2.extras.execute_values(cur, query, tuples, template=None, page_size=1000)
-
+				
+			
 				processed_lines += len(chunk)
 				print(f"Processed lines: {processed_lines}, Remaining lines: {total_lines - processed_lines}")
 
