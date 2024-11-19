@@ -168,7 +168,9 @@ if __name__ == '__main__':
 			'1_OMOPCDM_postgresql_5.4_ddl.sql', 
 			'2_OMOPCDM_postgresql_5.4_serials.sql', 
 			'3_OMOPCDM_postgresql_5.4_indices.sql', 
-			'4_OMOPCDM_postgresql_5.4_primary_keys.sql'
+			'4_OMOPCDM_postgresql_5.4_primary_keys.sql',
+			'5_OMOPCDM_postgresql_5.4_constraints.sql',
+			'6_OMOPCDM_postgresql_5.4_foreign_keys.sql'
 		]
 		run_ddls(ddl_files)
 
