@@ -4,3 +4,4 @@ vocab/*.csv
 .venv
 .idea
 docker-compose.yml
+*.patch

@@ -54,6 +54,32 @@ def run_ddls(ddl_files):
 
 		conn.close()
 
+def insert_statement_for(csv_filename, table_name, cols):
+	query = f"""
+	INSERT INTO {table_name}({cols})
+	VALUES %s 
+	"""
+
+	if "concept.csv" in csv_filename.lower():
+		query += "ON CONFLICT (concept_id) DO NOTHING;"
+	elif "vocabulary.csv" in csv_filename.lower():
+		query += "ON CONFLICT (vocabulary_id) DO NOTHING;"
+	elif "concept_class.csv" in csv_filename.lower():
+		query += "ON CONFLICT (concept_class_id) DO NOTHING;"
+	elif "domain.csv" in csv_filename.lower():
+		query += "ON CONFLICT (domain_id) DO NOTHING;"
+	elif "relationship.csv" in csv_filename.lower():
+		query += "ON CONFLICT (relationship_id) DO NOTHING;"
+	elif "concept_relationship.csv" in csv_filename.lower():
+		query += "ON CONFLICT (concept_id_1, concept_id_2, relationship_id) DO NOTHING;"
+	elif "concept_synonym.csv" in csv_filename.lower():
+		query += "ON CONFLICT (concept_id, concept_synonym_name) DO NOTHING;"
+	elif "concept_ancestor.csv" in csv_filename.lower():
+		query += "ON CONFLICT (ancestor_concept_id, descendant_concept_id, min_levels_of_separation, max_levels_of_separation) DO NOTHING;"
+	elif "drug_strength.csv" in csv_filename.lower():
+		query += "ON CONFLICT (drug_concept_id, ingredient_concept_id) DO NOTHING;"
+
+	return query
 
 def process_csv(csv, connection_details, cdm_schema, vocab_file_dir, chunk_size=1e6):
 	print(f"Working on file {Path(vocab_file_dir) / csv}")
@@ -105,15 +131,14 @@ def process_csv(csv, connection_details, cdm_schema, vocab_file_dir, chunk_size=
 
 				tuples = [tuple(x) for x in chunk.to_numpy()]
 				cols = ','.join(list(chunk.columns))
-				query = f"INSERT INTO {table_name}({cols}) VALUES %s"
-		
+
+				query = insert_statement_for(csv, table_name, cols)
 				psycopg2.extras.execute_values(cur, query, tuples, template=None, page_size=1000)
-				
-			
+
 				processed_lines += len(chunk)
 				print(f"Processed lines: {processed_lines}, Remaining lines: {total_lines - processed_lines}")
 
-			conn.commit()
+				conn.commit()
 
 		conn.close()
 		end_time = datetime.datetime.now()
@@ -129,22 +154,25 @@ def process_csv(csv, connection_details, cdm_schema, vocab_file_dir, chunk_size=
 
 
 def load_vocab_from_csv(connection_details, cdm_schema, vocab_file_dir):
-	csv_list = [
-	    "concept.csv",
-	    "vocabulary.csv",
-	    "concept_ancestor.csv",
-	    "concept_relationship.csv",
-	    "relationship.csv",
-	    "concept_synonym.csv",
-	    "domain.csv",
-	    "concept_class.csv",
-	    "drug_strength.csv"
+	# Explicit loading order to satisfy foreign keys:
+	load_order = [
+		"concept.csv",
+		"vocabulary.csv",
+		"concept_class.csv",
+		"domain.csv",
+		"relationship.csv",
+		"concept_relationship.csv",
+		"concept_synonym.csv",
+		"concept_ancestor.csv",
+		"drug_strength.csv"
 	]
 
-	file_list = [f.name for f in Path(vocab_file_dir).glob('*') if f.name.lower() in csv_list]
-
-	for csv in file_list:
-		process_csv(csv, connection_details, cdm_schema, vocab_file_dir)
+	for csv in load_order:
+		csv_path = Path(vocab_file_dir) / csv
+		if csv_path.exists():
+			process_csv(csv, connection_details, cdm_schema, vocab_file_dir)
+		else:
+			print(f"{csv} not found in {vocab_file_dir}")
 
 
 if __name__ == '__main__':
@@ -169,8 +197,6 @@ if __name__ == '__main__':
 			'2_OMOPCDM_postgresql_5.4_serials.sql', 
 			'3_OMOPCDM_postgresql_5.4_indices.sql', 
 			'4_OMOPCDM_postgresql_5.4_primary_keys.sql',
-			'5_OMOPCDM_postgresql_5.4_constraints.sql',
-			'6_OMOPCDM_postgresql_5.4_foreign_keys.sql'
 		]
 		run_ddls(ddl_files)
 
@@ -178,6 +204,7 @@ if __name__ == '__main__':
 
 	if env.get('CREATE_TABLES', False) in ['True', 'true', True, '1', 1]:
 		ddl_files = [
-			'5_OMOPCDM_postgresql_5.4_constraints.sql'
+			'5_OMOPCDM_postgresql_5.4_constraints.sql',
+			'6_Customizations.sql',
 		]
 		run_ddls(ddl_files)
