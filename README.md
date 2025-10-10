@@ -17,6 +17,7 @@ This Python script is a modified version of the [LoadVocabFromCsv() from OHDSI/E
 Ensure you have Python 3.x installed. Then, install the necessary packages:
 
 ```{bash}
+source venv/bin/activate
 pip install -r requirements.txt
 ```
 
