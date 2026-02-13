@@ -5,3 +5,4 @@ vocab/*.csv
 .idea
 docker-compose.yml
 *.patch
+certs/*
